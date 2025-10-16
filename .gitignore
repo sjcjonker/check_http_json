@@ -2,3 +2,4 @@
 *~
 .rbenv-*
 .ruby-*
+Gemfile.lock

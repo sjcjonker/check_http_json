@@ -83,10 +83,23 @@ How you choose to implement the plugin is up to you. Here are some suggestions:
 ### How are you implementing it?
 
 I encourage you to add your implementation to the [wiki] - that way everybody can benefit!
- 
+
+## Development
+
+The plugin script itself (`check_http_json.rb`) is completely self-contained with no external dependencies beyond Ruby's standard library.
+
+If you want to run the test suite:
+
+```bash
+bundle install
+bundle exec rake test
+```
+
+Note: The `Gemfile` is only used for running tests and is not required to use the plugin.
+
 ## Fin
 
-The script is licensed using the [Apache License], Version 2.0.
+This project is licensed under the [Apache License], Version 2.0.
 
 Finally, I invite you to peruse the list of [contributors]; thank you, all!
 
