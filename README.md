@@ -37,6 +37,7 @@ Usage: ./check_http_json.rb -u <URI> -e <element> -w <warn> -c <crit>
     -t, --timeout SECONDS            Wait before HTTP timeout.
         --cert PATH                  Client certificate file path
         --key PATH                   Private key file path
+        --insecure                   Disable SSL certificate verification (insecure)
 ```
 
 The `--warn` and `--crit` arguments conform to the Nagios [threshold format guidelines].

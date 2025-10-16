@@ -120,7 +120,7 @@ def nutty_parse(thresh, want, got, v, element)
 
     # if there is a non-numeric character we have to deal with that
     # got < want
-    if want =~ /^(\d+):$/ then
+    if want =~ /^(-?\d+):$/ then
         if got.to_i < $1.to_i then
             retval = '%s is below threshold value %s (%s)' % [element, $1, got]
         else
@@ -129,7 +129,7 @@ def nutty_parse(thresh, want, got, v, element)
     end
 
     # got > want
-    if want =~ /^~:(\d+)$/ then
+    if want =~ /^~:(-?\d+)$/ then
         if got.to_i > $1.to_i then
             retval = '%s is above threshold value %s (%s)' % [element, $1, got]
         else
@@ -138,7 +138,7 @@ def nutty_parse(thresh, want, got, v, element)
     end
 
     # outside specific range
-    if want =~ /^(\d+):(\d+)$/ then
+    if want =~ /^(-?\d+):(-?\d+)$/ then
         if got.to_i < $1.to_i or got.to_i > $2.to_i then
             retval = '%s is outside expected range [%s:%s] (%s)' % [element, $1, $2, got]
         else
@@ -147,16 +147,16 @@ def nutty_parse(thresh, want, got, v, element)
     end
 
     # inside specific range
-    if want =~ /^@(\d+):(\d+)$/ then
+    if want =~ /^@(-?\d+):(-?\d+)$/ then
         if got.to_i >= $1.to_i and got.to_i <= $2.to_i then
-            retval = '%s is in  value range [%s:%s] (%s)' % [element, $1, $2, got]
+            retval = '%s is in value range [%s:%s] (%s)' % [element, $1, $2, got]
         else
             retval = 'OK'
         end
     end
 
     # otherwise general range
-    if not want =~ /\D/ then
+    if want =~ /^-?\d+$/ then
         if got.to_i > want.to_i then
             retval = '%s is above threshold value %s (%s)' % [element, want, got]
         elsif got.to_i < 0  then
@@ -168,8 +168,6 @@ def nutty_parse(thresh, want, got, v, element)
 
     if retval == 'OK' then
         say(v, '%s threshold not exceeded.' % [thresh])
-    elsif retval == 'KO' then
-        say(v, '%s threshold exceeded.' % [thresh])
     else
         say(v, '"%s" is a strange and confusing %s value.' % [want, thresh])
     end
@@ -184,11 +182,16 @@ def uri_target(options)
 
     if uri.scheme == 'https' then
         http.use_ssl = true
-        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-    if options[:cert] && options[:key]
-      http.cert = OpenSSL::X509::Certificate.new(File.read(options[:cert]))
-      http.key = OpenSSL::PKey.read(File.read(options[:key]))
-    end
+        # Only disable SSL verification if explicitly requested via --insecure flag
+        if options[:insecure]
+            http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        else
+            http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        end
+        if options[:cert] && options[:key]
+            http.cert = OpenSSL::X509::Certificate.new(File.read(options[:cert]))
+            http.key = OpenSSL::PKey.read(File.read(options[:key]))
+        end
     end
 
     # Timeout handler, just in case.
@@ -201,7 +204,8 @@ def uri_target(options)
             end
             if (options[:headers]) then
                 options[:headers].each do |h|
-                    k,v = h.split(':')
+                    # Split on first colon only to preserve colons in header values
+                    k,v = h.split(':', 2)
                     request[k] = v
                 end
             end
@@ -439,6 +443,11 @@ def parse_args(options)
         opts.on('--key PATH', 'Private key file path') do |x|
           options[:key] = x
         end
+
+        options[:insecure] = false
+        opts.on('--insecure', 'Disable SSL certificate verification (insecure)') do
+          options[:insecure] = true
+        end
     end
 
     optparse.parse!
@@ -616,7 +625,7 @@ elsif options[:result_regex_warn] && options[:result_regex_crit]
 end
 
 if options[:crit]
-    Nagios.ok = '%s within treshold W:%s C:%s' % [element_message_name, options[:warn], options[:crit]]
+    Nagios.ok = '%s within threshold W:%s C:%s' % [element_message_name, options[:warn], options[:crit]]
 end
 
 # Check all elements
@@ -674,7 +683,8 @@ options[:element].each do |element|
             Nagios.critical = msg
         when Regexp.new(options[:result_regex_warn].to_s)
             Nagios.warning = msg
-        when Regexp.new(options[:result_regex_unknown].to_s)
+        # Only compile regex if option is set; otherwise nil
+        when options[:result_regex_unknown] ? Regexp.new(options[:result_regex_unknown].to_s) : nil
             Nagios.unknown = msg
         end
         # check next element
@@ -701,12 +711,14 @@ options[:element].each do |element|
     end
 
     # check warn threshold
-    warn = nutty_parse('Warning', options[:warn], element_value, options[:v], element)
-    if warn == 'FAIL'
-        Nagios.unknown = 'Warn threshold syntax failure.'
-        next
+    if options[:warn]
+        warn = nutty_parse('Warning', options[:warn], element_value, options[:v], element)
+        if warn == 'FAIL'
+            Nagios.unknown = 'Warn threshold syntax failure.'
+            next
+        end
+        Nagios.warning = warn unless warn == 'OK'
     end
-    Nagios.warning = warn unless warn == 'OK'
 end
 
 # Finally output the message and exit.
