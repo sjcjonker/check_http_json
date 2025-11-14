@@ -19,7 +19,6 @@
 # limitations under the License.
 
 # Requires.
-require 'rubygems' # fix compatibility with ruby 1.8.7 (json)
 require 'json'
 require 'net/http'
 require 'net/https'
