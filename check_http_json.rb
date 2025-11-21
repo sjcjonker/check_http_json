@@ -186,6 +186,8 @@ def uri_target(options)
             http.verify_mode = OpenSSL::SSL::VERIFY_NONE
         else
             http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+            http.ca_file = options[:cacert] if options[:cacert]
+            http.ca_path = options[:capath] if options[:capath]
         end
         if options[:cert] && options[:key]
             http.cert = OpenSSL::X509::Certificate.new(File.read(options[:cert]))
@@ -447,6 +449,18 @@ def parse_args(options)
         opts.on('--insecure', 'Disable SSL certificate verification (insecure)') do
           options[:insecure] = true
         end
+
+        options[:cacert] = nil
+        opts.on('--cacert PATH', 'CA certificate to verify peer against') do |x|
+          options[:cacert] = x
+        end
+
+        options[:capath] = nil
+        opts.on('--capath PATH', 'CA directory to verify peer against') do |x|
+          options[:capath] = x
+        end
+
+
     end
 
     optparse.parse!

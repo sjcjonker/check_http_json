@@ -38,6 +38,8 @@ Usage: ./check_http_json.rb -u <URI> -e <element> -w <warn> -c <crit>
         --cert PATH                  Client certificate file path
         --key PATH                   Private key file path
         --insecure                   Disable SSL certificate verification (insecure)
+        --cacert PATH                CA certificate to verify peer against
+        --capath PATH                CA directory to verify peer against
 ```
 
 The `--warn` and `--crit` arguments conform to the Nagios [threshold format guidelines].
