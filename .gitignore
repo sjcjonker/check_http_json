@@ -3,3 +3,7 @@
 .rbenv-*
 .ruby-*
 Gemfile.lock
+
+## ignore files created by bundler
+.bundle/
+vendor/
