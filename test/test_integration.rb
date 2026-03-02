@@ -202,4 +202,56 @@ class TestIntegration < Minitest::Test
     result = uri_target(options)
     assert_equal json_response, result
   end
+
+  def test_uri_target_https_with_cacert
+    json_response = {'secure' => true}
+
+    stub_request(:get, 'https://secure.example.com/api/status')
+      .to_return(status: 200, body: json_response.to_json)
+
+    options = {
+      uri: 'https://secure.example.com/api/status',
+      cacert: '/path/to/ca.pem',
+      timeout: 5,
+      v: false
+    }
+
+    result = uri_target(options)
+    assert_equal json_response, result
+  end
+
+  def test_uri_target_https_with_capath
+    json_response = {'secure' => true}
+
+    stub_request(:get, 'https://secure.example.com/api/status')
+      .to_return(status: 200, body: json_response.to_json)
+
+    options = {
+      uri: 'https://secure.example.com/api/status',
+      capath: '/path/to/certs/',
+      timeout: 5,
+      v: false
+    }
+
+    result = uri_target(options)
+    assert_equal json_response, result
+  end
+
+  def test_uri_target_https_insecure_ignores_cacert
+    json_response = {'secure' => true}
+
+    stub_request(:get, 'https://secure.example.com/api/status')
+      .to_return(status: 200, body: json_response.to_json)
+
+    options = {
+      uri: 'https://secure.example.com/api/status',
+      insecure: true,
+      cacert: '/path/to/ca.pem',
+      timeout: 5,
+      v: false
+    }
+
+    result = uri_target(options)
+    assert_equal json_response, result
+  end
 end
