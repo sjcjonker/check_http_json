@@ -2,6 +2,8 @@
 
 This is a plugin for Nagios that will parse JSON from an HTTP response. It is written in Ruby and is known to function in versions 1.9.3 and later (tested up to 3.3.5).
 
+The plugin script itself (`check_http_json.rb`) is completely self-contained with no external dependencies beyond Ruby's standard library. The `Gemfile` is only used for running tests and is not required to use the plugin.
+
 ## Usage
 
 ```
@@ -88,16 +90,12 @@ I encourage you to add your implementation to the [wiki] - that way everybody ca
 
 ## Development
 
-The plugin script itself (`check_http_json.rb`) is completely self-contained with no external dependencies beyond Ruby's standard library.
-
 If you want to run the test suite:
 
 ```bash
 bundle install
 bundle exec rake test
 ```
-
-Note: The `Gemfile` is only used for running tests and is not required to use the plugin.
 
 ## Fin
 
