@@ -172,6 +172,78 @@ class TestIntegration < Minitest::Test
     assert_https_uri_target_with(insecure: true, cacert: '/path/to/ca.pem')
   end
 
+  def test_long_output_extracts_element
+    json_data = {'status' => 'ok', 'details' => "one\ntwo"}
+
+    Tempfile.create(['test', '.json']) do |file|
+      file.write(json_data.to_json)
+      file.flush
+
+      options = {file: file.path, v: false}
+      json = file_target(options)
+      json_flat = hash_flatten(json, '.')
+
+      if json_flat.has_key?('details')
+        Nagios.long_output = json_flat['details'].to_s
+      end
+      Nagios.ok = 'status is ok'
+
+      stdout, _ = capture_exit { Nagios.do_exit }
+
+      lines = stdout.lines
+      assert_match(/OK: status is ok/, lines[0])
+      assert lines.any? { |l| l.include?('one') }
+      assert lines.any? { |l| l.include?('two') }
+    end
+  end
+
+  def test_long_output_missing_element
+    json_data = {'status' => 'ok'}
+
+    Tempfile.create(['test', '.json']) do |file|
+      file.write(json_data.to_json)
+      file.flush
+
+      options = {file: file.path, v: false}
+      json = file_target(options)
+      json_flat = hash_flatten(json, '.')
+
+      if json_flat.has_key?('details')
+        Nagios.long_output = json_flat['details'].to_s
+      end
+      Nagios.ok = 'status is ok'
+
+      stdout, _ = capture_exit { Nagios.do_exit }
+
+      assert_equal 1, stdout.lines.length
+      assert_match(/OK: status is ok/, stdout)
+    end
+  end
+
+  def test_long_output_non_string_element
+    json_data = {'status' => 'ok', 'meta' => {'host' => 'server1', 'port' => 8080}}
+
+    Tempfile.create(['test', '.json']) do |file|
+      file.write(json_data.to_json)
+      file.flush
+
+      options = {file: file.path, v: false}
+      json = file_target(options)
+      json_flat = hash_flatten(json, '.')
+
+      # Simulate --long_output with a non-string value (number) — coerce with .to_s
+      if json_flat.has_key?('meta.port')
+        Nagios.long_output = json_flat['meta.port'].to_s
+      end
+      Nagios.ok = 'status is ok'
+
+      stdout, _ = capture_exit { Nagios.do_exit }
+
+      assert_match(/OK: status is ok/, stdout.lines[0])
+      assert_match(/8080/, stdout)
+    end
+  end
+
   private
 
   def assert_https_uri_target_with(extra_options = {})
