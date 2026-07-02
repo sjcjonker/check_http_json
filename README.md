@@ -42,6 +42,7 @@ Usage: ./check_http_json.rb -u <URI> -e <element> -w <warn> -c <crit>
         --insecure                   Disable SSL certificate verification (insecure)
         --cacert PATH                CA certificate to verify peer against
         --capath PATH                CA directory to verify peer against
+        --long_output ELEMENT        Extract element value and emit as Nagios long output.
 ```
 
 The `--warn` and `--crit` arguments conform to the Nagios [threshold format guidelines].

@@ -45,6 +45,7 @@ module TestHelpers
     Nagios.instance_variable_set(:@perf, nil)
     Nagios.instance_variable_set(:@verbose, false)
     Nagios.instance_variable_set(:@output_alt_pipe, nil)
+    Nagios.instance_variable_set(:@long_output, nil)
   end
 
   # Capture stdout and exit code from a block that calls exit

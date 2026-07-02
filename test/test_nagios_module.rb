@@ -95,4 +95,52 @@ class TestNagiosModule < Minitest::Test
       assert_equal expected_code, exit_code, "Expected exit code #{expected_code} for message '#{msg}'"
     end
   end
+
+  def test_do_exit_with_long_output
+    Nagios.ok = 'status is ok'
+    Nagios.long_output = "line1\nline2"
+
+    stdout, _ = capture_exit { Nagios.do_exit }
+
+    lines = stdout.lines
+    assert_match(/OK: status is ok/, lines[0])
+    assert_match(/line1/, stdout)
+    assert_match(/line2/, stdout)
+    assert lines.index { |l| l.include?('line1') } > lines.index { |l| l.include?('OK:') }
+    assert lines.index { |l| l.include?('line2') } > lines.index { |l| l.include?('line1') }
+  end
+
+  def test_do_exit_without_long_output
+    Nagios.ok = 'status is ok'
+
+    stdout, _ = capture_exit { Nagios.do_exit }
+
+    assert_equal 1, stdout.lines.length
+    assert_match(/OK: status is ok/, stdout)
+  end
+
+  def test_do_exit_long_output_with_perfdata
+    Nagios.ok = 'status is ok'
+    Nagios.perf = ' | metric=42'
+    Nagios.long_output = "detail line"
+
+    stdout, _ = capture_exit { Nagios.do_exit }
+
+    lines = stdout.lines
+    assert_match(/OK: status is ok \| metric=42/, lines[0])
+    assert_match(/detail line/, lines[1])
+  end
+
+  def test_do_exit_long_output_pipe_substitution
+    Nagios.output_alt_pipe = '@'
+    Nagios.ok = 'status is ok'
+    Nagios.long_output = "value | with | pipes"
+
+    stdout, _ = capture_exit { Nagios.do_exit }
+
+    lines = stdout.lines
+    assert_match(/OK: status is ok/, lines[0])
+    assert_match(/value @ with @ pipes/, lines[1])
+    refute_match(/\|/, lines[1])
+  end
 end

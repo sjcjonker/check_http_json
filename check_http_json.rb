@@ -41,7 +41,8 @@ module Nagios
         # Nagios.perf => append Perf output
         # Nagios.verbose = true|false => force unknown on exit
         # Nagios.output_alt_pipe => substitute pipes in output
-        attr_accessor :perf, :verbose, :output_alt_pipe
+        # Nagios.long_output => Nagios long output (lines after first status line)
+        attr_accessor :perf, :verbose, :output_alt_pipe, :long_output
 
         # Use default writer (like critical, but without exit).
         # Nagios.ok/warning/unknown = <nagios message>
@@ -71,6 +72,9 @@ module Nagios
             # Substitute pipes because that symbol is sacred to Nagios (see issue #42).
             msg = msg.to_s.gsub "|", @output_alt_pipe.to_s
             puts '%s: %s' % [CODES[code.to_i], msg.to_s] + @perf.to_s
+            if @long_output && !@long_output.to_s.empty?
+                puts @long_output.to_s.gsub("|", @output_alt_pipe.to_s)
+            end
             exit 3 if @verbose
             exit code
         end
@@ -460,6 +464,10 @@ def parse_args(options)
           options[:capath] = x
         end
 
+        options[:long_output] = nil
+        opts.on('--long_output ELEMENT', 'Extract element value and emit as Nagios long output (lines after the status line).') do |x|
+          options[:long_output] = x
+        end
 
     end
 
@@ -590,6 +598,13 @@ if options[:perf_regex].is_a?(Array) then
     end
     # Build a nice output string (issue #17).
     Nagios.perf = ' | ' + p.join(' ')
+end
+
+# If long output has been requested, look up the element and assign it.
+if options[:long_output] then
+    if json_flat.has_key?(options[:long_output]) then
+        Nagios.long_output = json_flat[options[:long_output]].to_s
+    end
 end
 
 # ensure element is an array
