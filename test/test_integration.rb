@@ -43,6 +43,19 @@ class TestIntegration < Minitest::Test
     end
   end
 
+  def test_file_target_rejects_excessive_json_nesting
+    Tempfile.create(['test', '.json']) do |file|
+      file.write('{"a":{"b":{"c":1}}}')
+      file.flush
+
+      options = {file: file.path, max_json_depth: 2, v: false}
+      stdout, exit_code = capture_exit { file_target(options) }
+
+      assert_equal 3, exit_code
+      assert_match(/UNKNOWN: Parsing JSON failed/, stdout)
+    end
+  end
+
   def test_file_target_nonexistent_file
     options = {file: '/nonexistent/file.json', v: false}
 
@@ -286,4 +299,3 @@ class TestIntegration < Minitest::Test
     assert_equal json_response, uri_target(options)
   end
 end
-

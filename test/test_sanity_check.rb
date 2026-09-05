@@ -143,6 +143,23 @@ class TestSanityCheck < Minitest::Test
     assert_match(/--max-response-bytes must be greater than zero/, stdout)
   end
 
+  def test_sanity_check_rejects_non_positive_json_limits
+    options = default_options.merge({
+      uri: 'http://example.com',
+      element_string: ['test'],
+      warn: '10',
+      crit: '20',
+      max_json_depth: 0,
+      max_json_elements: 0
+    })
+
+    stdout, exit_code = capture_exit { sanity_check(options) }
+
+    assert_equal 3, exit_code
+    assert_match(/--max-json-depth must be greater than zero/, stdout)
+    assert_match(/--max-json-elements must be greater than zero/, stdout)
+  end
+
   def test_sanity_check_valid_config_with_result_string
     options = default_options.merge({
       uri: 'http://example.com',
@@ -157,4 +174,3 @@ class TestSanityCheck < Minitest::Test
     end
   end
 end
-

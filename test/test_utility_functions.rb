@@ -61,6 +61,26 @@ class TestUtilityFunctions < Minitest::Test
     assert_equal({'foo_bar' => 'value'}, result)
   end
 
+  def test_hash_flatten_rejects_excessive_depth
+    limits = {max_depth: 2, max_elements: 100, elements: 0}
+
+    error = assert_raises(JsonComplexityExceeded) do
+      hash_flatten({'a' => {'b' => {'c' => 'deep'}}}, '.', nil, {}, 0, limits)
+    end
+
+    assert_match(/nesting exceeds 2 levels/, error.message)
+  end
+
+  def test_hash_flatten_rejects_excessive_element_count
+    limits = {max_depth: 64, max_elements: 2, elements: 0}
+
+    error = assert_raises(JsonComplexityExceeded) do
+      hash_flatten({'a' => 1, 'b' => 2}, '.', nil, {}, 0, limits)
+    end
+
+    assert_match(/more than 2 elements/, error.message)
+  end
+
   # Tests for nutty_parse (Nagios range syntax)
   def test_nutty_parse_simple_threshold
     result = nutty_parse('Warning', '10', 5, false, 'test_element')
