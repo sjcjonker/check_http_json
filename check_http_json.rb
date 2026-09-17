@@ -462,7 +462,7 @@ def parse_args(options)
         end
 
         options[:max_response_bytes] = DEFAULT_MAX_RESPONSE_BYTES
-        opts.on('--max-response-bytes BYTES', Integer,
+        opts.on('--max_response_bytes BYTES', Integer,
                 'Maximum HTTP response body size. Default: 1048576.') do |x|
             options[:max_response_bytes] = x
         end
@@ -553,7 +553,7 @@ def sanity_check(options)
     end
 
     if options.fetch(:max_response_bytes, DEFAULT_MAX_RESPONSE_BYTES) <= 0
-        error_msg.push('--max-response-bytes must be greater than zero.')
+        error_msg.push('--max_response_bytes must be greater than zero.')
     end
 
     if error_msg.length > 0 then

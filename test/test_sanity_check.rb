@@ -140,7 +140,7 @@ class TestSanityCheck < Minitest::Test
     stdout, exit_code = capture_exit { sanity_check(options) }
 
     assert_equal 3, exit_code
-    assert_match(/--max-response-bytes must be greater than zero/, stdout)
+    assert_match(/--max_response_bytes must be greater than zero/, stdout)
   end
 
   def test_sanity_check_valid_config_with_result_string
