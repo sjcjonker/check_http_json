@@ -66,7 +66,10 @@ module TestHelpers
   def default_options
     {
       element_string: [],
-      delimiter: '.'
+      delimiter: '.',
+      max_response_bytes: 1048576,
+      max_json_depth: 64,
+      max_json_elements: 100000
     }
   end
 end

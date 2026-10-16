@@ -27,8 +27,11 @@ require 'optparse'
 require 'timeout'
 
 DEFAULT_MAX_RESPONSE_BYTES = 1_048_576
+DEFAULT_MAX_JSON_DEPTH = 64
+DEFAULT_MAX_JSON_ELEMENTS = 100_000
 
 class ResponseLimitExceeded < StandardError; end
+class JsonComplexityExceeded < StandardError; end
 
 # Manage Nagios messages and exit code
 module Nagios
@@ -45,7 +48,6 @@ module Nagios
         # Nagios.perf => append Perf output
         # Nagios.verbose = true|false => force unknown on exit
         # Nagios.output_alt_pipe => substitute pipes in output
-        # Nagios.long_output => Nagios long output (lines after first status line)
         attr_accessor :perf, :verbose, :output_alt_pipe, :long_output
 
         # Use default writer (like critical, but without exit).
@@ -98,20 +100,35 @@ def say (v, msg)
 end
 
 # The results may be nested hashes; flatten that out into something manageable.
-def hash_flatten(hash, delimiter, prefix = nil, flat = {})
+def hash_flatten(hash, delimiter, prefix = nil, flat = {}, depth = 0, limits = nil)
+    limits ||= {
+        max_depth: DEFAULT_MAX_JSON_DEPTH,
+        max_elements: DEFAULT_MAX_JSON_ELEMENTS,
+        elements: 0
+    }
+    if depth > limits[:max_depth]
+        raise JsonComplexityExceeded,
+              'JSON nesting exceeds %d levels.' % [limits[:max_depth]]
+    end
+    limits[:elements] += 1
+    if limits[:elements] > limits[:max_elements]
+        raise JsonComplexityExceeded,
+              'JSON contains more than %d elements.' % [limits[:max_elements]]
+    end
+
     if hash.is_a? Array then
         hash.each_index do |index|
             newkey = index
             newkey = '%s%s%s' % [prefix, delimiter, newkey] if prefix
             val = hash[index]
-            hash_flatten val, delimiter, newkey, flat
+            hash_flatten val, delimiter, newkey, flat, depth + 1, limits
         end
     elsif hash.is_a? Hash then
         hash.keys.each do |key|
             newkey = key
             newkey = '%s%s%s' % [prefix, delimiter, key] if prefix
             val = hash[key]
-            hash_flatten val, delimiter, newkey, flat
+            hash_flatten val, delimiter, newkey, flat, depth + 1, limits
         end
     else
         flat[prefix] = hash
@@ -206,7 +223,6 @@ def uri_target(options)
     # Timeout handler, just in case.
     response = nil
     response_body = String.new(encoding: Encoding::BINARY)
-    max_response_bytes = options.fetch(:max_response_bytes, DEFAULT_MAX_RESPONSE_BYTES)
     begin
         Timeout::timeout(options[:timeout]) do
             request = Net::HTTP::Get.new(uri.request_uri)
@@ -222,14 +238,14 @@ def uri_target(options)
             end
             response = http.request(request) do |http_response|
                 if http_response.content_length &&
-                   http_response.content_length > max_response_bytes
+                   http_response.content_length > options[:max_response_bytes]
                     raise ResponseLimitExceeded,
-                          'HTTP response exceeds %d bytes.' % [max_response_bytes]
+                          'HTTP response exceeds %d bytes.' % [options[:max_response_bytes]]
                 end
                 http_response.read_body do |chunk|
-                    if response_body.bytesize + chunk.bytesize > max_response_bytes
+                    if response_body.bytesize + chunk.bytesize > options[:max_response_bytes]
                         raise ResponseLimitExceeded,
-                              'HTTP response exceeds %d bytes.' % [max_response_bytes]
+                              'HTTP response exceeds %d bytes.' % [options[:max_response_bytes]]
                     end
                     response_body << chunk
                 end
@@ -271,7 +287,7 @@ def uri_target(options)
 
     begin
         # Make a JSON object from the response.
-        json = JSON.parse response_body
+        json = JSON.parse(response_body, max_nesting: options[:max_json_depth])
     rescue Exception => e
         say(options[:v], 'Could not parse JSON from HTTP response: %s.' % [e])
         msg = 'Parsing JSON failed.'
@@ -299,7 +315,9 @@ def file_target(options)
 
     begin
         # Make a JSON object from the contents of the file.
-        json = JSON.parse(File.read(options[:file]))
+        json = JSON.parse(
+            File.read(options[:file]), max_nesting: options[:max_json_depth]
+        )
     rescue Exception => e
         say(options[:v], 'Could not parse JSON from input file: %s.' % [e])
         msg = 'Parsing JSON failed.'
@@ -462,9 +480,26 @@ def parse_args(options)
         end
 
         options[:max_response_bytes] = DEFAULT_MAX_RESPONSE_BYTES
-        opts.on('--max_response_bytes BYTES', Integer,
+        opts.on('--max_response_bytes BYTES', '--max-response-bytes BYTES', Integer,
                 'Maximum HTTP response body size. Default: 1048576.') do |x|
             options[:max_response_bytes] = x
+        end
+
+        options[:long_output] = nil
+        opts.on('--long_output ELEMENT', 'Extract element value as Nagios long output.') do |x|
+            options[:long_output] = x
+        end
+
+        options[:max_json_depth] = DEFAULT_MAX_JSON_DEPTH
+        opts.on('--max-json-depth LEVELS', Integer,
+                'Maximum JSON nesting depth. Default: 64.') do |x|
+            options[:max_json_depth] = x
+        end
+
+        options[:max_json_elements] = DEFAULT_MAX_JSON_ELEMENTS
+        opts.on('--max-json-elements COUNT', Integer,
+                'Maximum JSON nodes processed. Default: 100000.') do |x|
+            options[:max_json_elements] = x
         end
 
         options[:cert] = nil
@@ -492,10 +527,6 @@ def parse_args(options)
           options[:capath] = x
         end
 
-        options[:long_output] = nil
-        opts.on('--long_output ELEMENT', 'Extract element value and emit as Nagios long output (lines after the status line).') do |x|
-          options[:long_output] = x
-        end
 
     end
 
@@ -552,8 +583,16 @@ def sanity_check(options)
       error_msg.push('Both --cert and --key must be specified together.')
     end
 
-    if options.fetch(:max_response_bytes, DEFAULT_MAX_RESPONSE_BYTES) <= 0
+    if options[:max_response_bytes] <= 0
         error_msg.push('--max_response_bytes must be greater than zero.')
+    end
+
+    if options[:max_json_depth] <= 0
+        error_msg.push('--max-json-depth must be greater than zero.')
+    end
+
+    if options[:max_json_elements] <= 0
+        error_msg.push('--max-json-elements must be greater than zero.')
     end
 
     if error_msg.length > 0 then
@@ -591,7 +630,16 @@ if options[:file] then
 end
 
 # Flatten that bad boy.
-json_flat = hash_flatten(json, options[:delimiter])
+begin
+    limits = {
+        max_depth: options[:max_json_depth],
+        max_elements: options[:max_json_elements],
+        elements: 0
+    }
+    json_flat = hash_flatten(json, options[:delimiter], nil, {}, 0, limits)
+rescue JsonComplexityExceeded => e
+    Nagios.do_exit(3, e.message)
+end
 
 # If performance metrics have been requested...
 if options[:perf_string] then
@@ -632,11 +680,9 @@ if options[:perf_regex].is_a?(Array) then
     Nagios.perf = ' | ' + p.join(' ')
 end
 
-# If long output has been requested, look up the element and assign it.
-if options[:long_output] then
-    if json_flat.has_key?(options[:long_output]) then
-        Nagios.long_output = json_flat[options[:long_output]].to_s
-    end
+# Extract optional long output using the same flattened element names.
+if options[:long_output] && json_flat.has_key?(options[:long_output])
+    Nagios.long_output = json_flat[options[:long_output]].to_s
 end
 
 # ensure element is an array
@@ -685,7 +731,7 @@ elsif options[:result_regex_warn] && options[:result_regex_crit]
 end
 
 if options[:crit]
-    Nagios.ok = '%s within threshold W:%s C:%s' % [element_message_name, options[:warn], options[:crit]]
+    Nagios.ok = '%s is within threshold W:%s C:%s' % [element_message_name, options[:warn], options[:crit]]
 end
 
 # Check all elements
@@ -754,7 +800,7 @@ options[:element].each do |element|
     # If we're dealing with threshold values...
 
     # Numbahs only, brah.
-    if element_value.to_s =~ /\D/
+    if element_value.to_s =~ /[^0-9\.-]/
         say(options[:v], 'The value of %s contains non-numeric characters.' % [element])
         Nagios.unknown = 'Return value syntax failure.'
         next
@@ -783,4 +829,3 @@ end
 
 # Finally output the message and exit.
 Nagios.do_exit
-
