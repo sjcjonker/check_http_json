@@ -1,0 +1,16 @@
+name: Tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - run: ruby -c check_http_json.rb
+      - run: bundle exec rake
+      - run: python3 -m unittest discover -s tests -v

@@ -111,3 +111,14 @@ GitHub pull requests welcome.
 [Apache License]: http://www.apache.org/licenses/LICENSE-2.0
 [wiki]: https://github.com/phrawzty/check_http_json/wiki
 [contributors]: https://github.com/phrawzty/check_http_json/graphs/contributors
+
+## SJC deployment compatibility
+
+The nagios repository pins this fork as a Git submodule. The canonical script
+now includes the already deployed negative/decimal threshold handling and
+JSON depth/node limits, preserving both response-size flag spellings and
+upstream long-output support. Extraction does not change deployed script bytes.
+
+Run `bundle exec rake` for the upstream Ruby suite and
+`python3 -m unittest discover -s tests -v` for CLI compatibility regressions.
+The runtime script still needs no additional gems; Gemfile is only for tests.
