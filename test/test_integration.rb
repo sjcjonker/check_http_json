@@ -44,7 +44,7 @@ class TestIntegration < Minitest::Test
   end
 
   def test_file_target_nonexistent_file
-    options = {file: '/nonexistent/file.json', v: false}
+    options = default_options.merge({file: '/nonexistent/file.json', v: false}
 
     stdout, exit_code = capture_exit { file_target(options) }
 
@@ -63,7 +63,7 @@ class TestIntegration < Minitest::Test
       uri: 'http://example.com/api/status',
       timeout: 5,
       v: false
-    }
+    })
 
     result = uri_target(options)
     assert_equal json_response, result
@@ -73,12 +73,12 @@ class TestIntegration < Minitest::Test
     stub_request(:get, 'http://example.com/api/status')
       .to_return(status: 404, body: 'Not Found')
 
-    options = {
+    options = default_options.merge({
       uri: 'http://example.com/api/status',
       timeout: 5,
       status_level_default: 1,
       v: false
-    }
+    })
 
     stdout, exit_code = capture_exit { uri_target(options) }
 
@@ -90,13 +90,13 @@ class TestIntegration < Minitest::Test
     stub_request(:get, 'http://example.com/api/status')
       .to_return(status: 301, body: '{}')
 
-    options = {
+    options = default_options.merge({
       uri: 'http://example.com/api/status',
       timeout: 5,
       status_level: ['301:0'],  # Treat 301 as OK
       status_level_default: 2,
       v: false
-    }
+    })
 
     # Should not exit since 301 is configured as level 0
     result = uri_target(options)
@@ -107,11 +107,11 @@ class TestIntegration < Minitest::Test
     stub_request(:get, 'http://example.com/api/status')
       .to_return(status: 200, body: 'this is not json')
 
-    options = {
+    options = default_options.merge({
       uri: 'http://example.com/api/status',
       timeout: 5,
       v: false
-    }
+    })
 
     stdout, exit_code = capture_exit { uri_target(options) }
 
@@ -123,12 +123,12 @@ class TestIntegration < Minitest::Test
     stub_request(:get, 'http://example.com/api/large')
       .to_return(status: 200, body: '{"value":"too large"}')
 
-    options = {
+    options = default_options.merge({
       uri: 'http://example.com/api/large',
       timeout: 5,
       max_response_bytes: 8,
       v: false
-    }
+    })
 
     stdout, exit_code = capture_exit { uri_target(options) }
 
@@ -141,12 +141,12 @@ class TestIntegration < Minitest::Test
     stub_request(:get, 'http://example.com/api/limited')
       .to_return(status: 200, body: body)
 
-    options = {
+    options = default_options.merge({
       uri: 'http://example.com/api/limited',
       timeout: 5,
       max_response_bytes: body.bytesize,
       v: false
-    }
+    })
 
     assert_equal({'a' => 1}, uri_target(options))
   end
@@ -158,13 +158,13 @@ class TestIntegration < Minitest::Test
       .with(basic_auth: ['user', 'pass'])
       .to_return(status: 200, body: json_response.to_json)
 
-    options = {
+    options = default_options.merge({
       uri: 'http://example.com/api/protected',
       user: 'user',
       pass: 'pass',
       timeout: 5,
       v: false
-    }
+    })
 
     result = uri_target(options)
     assert_equal json_response, result
@@ -177,12 +177,12 @@ class TestIntegration < Minitest::Test
       .with(headers: {'X-Custom-Header' => 'custom-value', 'X-API-Key' => 'secret123'})
       .to_return(status: 200, body: json_response.to_json)
 
-    options = {
+    options = default_options.merge({
       uri: 'http://example.com/api/data',
       headers: ['X-Custom-Header:custom-value', 'X-API-Key:secret123'],
       timeout: 5,
       v: false
-    }
+    })
 
     result = uri_target(options)
     assert_equal json_response, result
@@ -282,7 +282,7 @@ class TestIntegration < Minitest::Test
     json_response = {'secure' => true}
     stub_request(:get, 'https://secure.example.com/api/status')
       .to_return(status: 200, body: json_response.to_json)
-    options = {uri: 'https://secure.example.com/api/status', timeout: 5, v: false}.merge(extra_options)
+    options = default_options.merge({uri: 'https://secure.example.com/api/status', timeout: 5, v: false}).merge(extra_options)
     assert_equal json_response, uri_target(options)
   end
 end
