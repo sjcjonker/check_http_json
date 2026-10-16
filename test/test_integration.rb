@@ -44,7 +44,7 @@ class TestIntegration < Minitest::Test
   end
 
   def test_file_target_nonexistent_file
-    options = default_options.merge({file: '/nonexistent/file.json', v: false}
+    options = default_options.merge({file: '/nonexistent/file.json', v: false})
 
     stdout, exit_code = capture_exit { file_target(options) }
 
@@ -59,7 +59,7 @@ class TestIntegration < Minitest::Test
     stub_request(:get, 'http://example.com/api/status')
       .to_return(status: 200, body: json_response.to_json, headers: {'Content-Type' => 'application/json'})
 
-    options = {
+    options = default_options.merge({
       uri: 'http://example.com/api/status',
       timeout: 5,
       v: false
